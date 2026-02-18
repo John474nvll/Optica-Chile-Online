@@ -23,15 +23,15 @@ export default function Shop() {
     <div className="container mx-auto px-4 py-8">
       <div className="flex flex-col md:flex-row justify-between items-end gap-6 mb-12">
         <div>
-          <h1 className="text-4xl font-display font-bold mb-2">Shop Eyewear</h1>
-          <p className="text-muted-foreground">Discover the perfect frames for your face shape.</p>
+          <h1 className="text-4xl font-display font-bold mb-2">Tienda de Lentes</h1>
+          <p className="text-muted-foreground">Encuentra los armazones perfectos para ti.</p>
         </div>
         
         <div className="w-full md:w-auto flex gap-2">
           <div className="relative w-full md:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input 
-              placeholder="Search frames..." 
+              placeholder="Buscar..." 
               className="pl-9 rounded-full"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -47,16 +47,16 @@ export default function Shop() {
           onClick={() => setFilterCategory(null)}
           className="rounded-full"
         >
-          All
+          Todos
         </Button>
-        {Object.values(PRODUCT_CATEGORIES).map((cat) => (
+        {Object.entries(PRODUCT_CATEGORIES).map(([key, label]) => (
           <Button
-            key={cat}
-            variant={filterCategory === cat ? "default" : "outline"}
-            onClick={() => setFilterCategory(cat)}
+            key={key}
+            variant={filterCategory === label ? "default" : "outline"}
+            onClick={() => setFilterCategory(label)}
             className="rounded-full capitalize"
           >
-            {cat.replace('_', ' ')}
+            {label.replace('_', ' ')}
           </Button>
         ))}
       </div>
@@ -85,7 +85,7 @@ export default function Shop() {
                     <CardTitle className="text-lg font-bold">{product.name}</CardTitle>
                     <p className="text-xs text-muted-foreground capitalize mt-1">{product.category.replace('_', ' ')}</p>
                   </div>
-                  <span className="font-bold text-primary text-lg">${product.price}</span>
+                  <span className="font-bold text-primary text-lg">${Number(product.price).toLocaleString('es-CL')}</span>
                 </div>
               </CardHeader>
               <CardContent className="p-5 pt-2">
@@ -93,7 +93,7 @@ export default function Shop() {
               </CardContent>
               <CardFooter className="p-5 pt-0">
                 <Button className="w-full gap-2 group-hover:bg-primary/90">
-                  <ShoppingBag className="w-4 h-4" /> Add to Cart
+                  <ShoppingBag className="w-4 h-4" /> Añadir al Carrito
                 </Button>
               </CardFooter>
             </Card>
@@ -102,7 +102,7 @@ export default function Shop() {
           {filteredProducts?.length === 0 && (
             <div className="col-span-full py-20 text-center text-muted-foreground">
               <Tag className="w-12 h-12 mx-auto mb-4 opacity-20" />
-              <p>No products found matching your criteria.</p>
+              <p>No se encontraron productos.</p>
             </div>
           )}
         </div>

@@ -14,13 +14,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { format } from "date-fns";
+import { es } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 
-// Extend schema for form validation
 const formSchema = insertAppointmentSchema.extend({
   date: z.date(),
-  time: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format"),
+  time: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Formato de hora inválido"),
 });
 
 export default function Appointments() {
@@ -33,11 +33,11 @@ export default function Appointments() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       patientId: user?.id || "",
-      doctorName: "Dr. Smith", // Default for now
+      doctorName: "Dr. General",
       reason: "",
       notes: "",
       time: "09:00",
-      status: "scheduled",
+      status: "programada",
     },
   });
 
@@ -45,7 +45,6 @@ export default function Appointments() {
     if (!user) return;
 
     try {
-      // Combine date and time
       const [hours, minutes] = values.time.split(':').map(Number);
       const appointmentDate = new Date(values.date);
       appointmentDate.setHours(hours, minutes);
@@ -53,19 +52,19 @@ export default function Appointments() {
       await createAppointment.mutateAsync({
         ...values,
         patientId: user.id,
-        date: appointmentDate, // Send actual Date object
+        date: appointmentDate,
       });
 
       toast({
-        title: "Appointment Requested",
-        description: "We have received your request and will confirm shortly.",
+        title: "Cita Solicitada",
+        description: "Hemos recibido tu solicitud y confirmaremos a la brevedad.",
       });
       
       setLocation("/dashboard");
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to book appointment. Please try again.",
+        description: "No se pudo agendar la cita. Por favor intenta de nuevo.",
         variant: "destructive",
       });
     }
@@ -74,14 +73,14 @@ export default function Appointments() {
   return (
     <div className="container mx-auto px-4 py-12 max-w-2xl">
       <div className="text-center mb-10">
-        <h1 className="text-4xl font-display font-bold mb-4">Book an Eye Exam</h1>
-        <p className="text-muted-foreground">Select a time that works for you. Our comprehensive exams typically take 30-45 minutes.</p>
+        <h1 className="text-4xl font-display font-bold mb-4">Agenda un Examen</h1>
+        <p className="text-muted-foreground">Nuestros exámenes duran típicamente entre 30 y 45 minutos.</p>
       </div>
 
       <Card className="border-border/50 shadow-xl">
         <CardHeader>
-          <CardTitle>Schedule Appointment</CardTitle>
-          <CardDescription>Fill out the form below to request a time.</CardDescription>
+          <CardTitle>Programar Cita</CardTitle>
+          <CardDescription>Completa el formulario para solicitar una hora.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -93,7 +92,7 @@ export default function Appointments() {
                   name="date"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      <FormLabel>Date</FormLabel>
+                      <FormLabel>Fecha</FormLabel>
                       <Popover>
                         <PopoverTrigger asChild>
                           <FormControl>
@@ -105,9 +104,9 @@ export default function Appointments() {
                               )}
                             >
                               {field.value ? (
-                                format(field.value, "PPP")
+                                format(field.value, "PPP", { locale: es })
                               ) : (
-                                <span>Pick a date</span>
+                                <span>Selecciona una fecha</span>
                               )}
                               <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                             </Button>
@@ -135,7 +134,7 @@ export default function Appointments() {
                   name="time"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Time</FormLabel>
+                      <FormLabel>Hora</FormLabel>
                       <FormControl>
                         <Input type="time" {...field} />
                       </FormControl>
@@ -150,9 +149,9 @@ export default function Appointments() {
                 name="reason"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Reason for Visit</FormLabel>
+                    <FormLabel>Motivo de la Visita</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. Annual Checkup, Blurred Vision, New Glasses" {...field} />
+                      <Input placeholder="Ej: Control anual, Visión borrosa, Lentes nuevos" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -164,10 +163,10 @@ export default function Appointments() {
                 name="notes"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Additional Notes (Optional)</FormLabel>
+                    <FormLabel>Notas Adicionales (Opcional)</FormLabel>
                     <FormControl>
                       <Textarea 
-                        placeholder="Any specific concerns or medical history updates?" 
+                        placeholder="Alguna preocupación específica?" 
                         className="resize-none min-h-[100px]" 
                         {...field} 
                       />
@@ -184,10 +183,10 @@ export default function Appointments() {
               >
                 {createAppointment.isPending ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Booking...
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Agendando...
                   </>
                 ) : (
-                  "Confirm Booking"
+                  "Confirmar Reserva"
                 )}
               </Button>
             </form>
