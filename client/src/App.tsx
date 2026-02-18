@@ -3,16 +3,55 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Layout } from "@/components/layout";
+import { useAuth } from "@/hooks/use-auth";
+import { Loader2 } from "lucide-react";
+
+import Home from "@/pages/home";
+import Shop from "@/pages/shop";
+import Dashboard from "@/pages/dashboard";
+import Appointments from "@/pages/appointments";
 import NotFound from "@/pages/not-found";
+
+function ProtectedRoute({ component: Component, ...rest }: any) {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="flex h-[80vh] items-center justify-center">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    // Redirect logic handled by useAuth or user manually
+    window.location.href = "/api/login";
+    return null;
+  }
+
+  return <Component />;
+}
 
 function Router() {
   return (
-    <Switch>
-      {/* Add pages below */}
-      {/* <Route path="/" component={Home}/> */}
-      {/* Fallback to 404 */}
-      <Route component={NotFound} />
-    </Switch>
+    <Layout>
+      <Switch>
+        <Route path="/" component={Home} />
+        <Route path="/shop" component={Shop} />
+        <Route path="/dashboard">
+          <ProtectedRoute component={Dashboard} />
+        </Route>
+        <Route path="/appointments">
+          <ProtectedRoute component={Appointments} />
+        </Route>
+        {/* Admin route placeholder - reuses dashboard for now but protected */}
+        <Route path="/admin">
+          <ProtectedRoute component={Dashboard} />
+        </Route>
+        <Route component={NotFound} />
+      </Switch>
+    </Layout>
   );
 }
 
