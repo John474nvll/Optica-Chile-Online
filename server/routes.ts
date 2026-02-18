@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth } from "./replit_integrations/auth";
+import { setupAuth, isAuthenticated } from "./replit_integrations/auth";
 import { registerAuthRoutes } from "./replit_integrations/auth";
 import { api } from "@shared/routes";
 import { z } from "zod";
@@ -28,7 +28,7 @@ export async function registerRoutes(
     res.json(product);
   });
 
-  app.post(api.products.create.path, async (req, res) => {
+  app.post(api.products.create.path, isAuthenticated, async (req, res) => {
     try {
       const input = insertProductSchema.parse(req.body);
       const product = await storage.createProduct(input);
@@ -41,87 +41,128 @@ export async function registerRoutes(
     }
   });
 
-  app.put(api.products.update.path, async (req, res) => {
+  app.put(api.products.update.path, isAuthenticated, async (req, res) => {
     const input = insertProductSchema.partial().parse(req.body);
     const product = await storage.updateProduct(Number(req.params.id), input);
     if (!product) return res.status(404).json({ message: "Product not found" });
     res.json(product);
   });
 
-  app.delete(api.products.delete.path, async (req, res) => {
+  app.delete(api.products.delete.path, isAuthenticated, async (req, res) => {
     await storage.deleteProduct(Number(req.params.id));
     res.status(204).send();
   });
 
   // === APPOINTMENTS ===
-  app.get(api.appointments.list.path, async (req, res) => {
-    // In a real app, check user role here.
-    // Admin/Staff: see all (or filter by patientId)
-    // Patient: see only own (force patientId = req.user.id)
+  app.get(api.appointments.list.path, isAuthenticated, async (req, res) => {
     const appointments = await storage.getAppointments(req.query.patientId as string);
     res.json(appointments);
   });
 
-  app.post(api.appointments.create.path, async (req, res) => {
+  app.post(api.appointments.create.path, isAuthenticated, async (req, res) => {
     const input = insertAppointmentSchema.parse(req.body);
     const appointment = await storage.createAppointment(input);
     res.status(201).json(appointment);
   });
 
-  app.put(api.appointments.update.path, async (req, res) => {
+  app.put(api.appointments.update.path, isAuthenticated, async (req, res) => {
     const input = insertAppointmentSchema.partial().parse(req.body);
     const appointment = await storage.updateAppointment(Number(req.params.id), input);
     res.json(appointment);
   });
 
   // === PRESCRIPTIONS ===
-  app.get(api.prescriptions.list.path, async (req, res) => {
+  app.get(api.prescriptions.list.path, isAuthenticated, async (req, res) => {
     const prescriptions = await storage.getPrescriptions(req.query.patientId as string);
     res.json(prescriptions);
   });
 
-  app.post(api.prescriptions.create.path, async (req, res) => {
+  app.get(api.prescriptions.get.path, isAuthenticated, async (req, res) => {
+    const prescription = await storage.getPrescription(Number(req.params.id));
+    if (!prescription) return res.status(404).json({ message: "Receta no encontrada" });
+    res.json(prescription);
+  });
+
+  app.post(api.prescriptions.create.path, isAuthenticated, async (req, res) => {
     const input = insertPrescriptionSchema.parse(req.body);
     const prescription = await storage.createPrescription(input);
     res.status(201).json(prescription);
   });
 
+  app.get(api.prescriptions.print.path, isAuthenticated, async (req, res) => {
+    const prescription = await storage.getPrescription(Number(req.params.id));
+    if (!prescription) return res.status(404).json({ message: "Receta no encontrada" });
+    
+    // Simple HTML template for printing
+    const html = `
+      <html>
+        <head><title>Receta Óptica - ${prescription.id}</title></head>
+        <body style="font-family: sans-serif; padding: 40px;">
+          <h1>Óptica Chile Online</h1>
+          <hr/>
+          <h2>Receta de Oftalmología</h2>
+          <p><strong>Paciente ID:</strong> ${prescription.patientId}</p>
+          <p><strong>Doctor:</strong> ${prescription.doctorName || 'No especificado'}</p>
+          <p><strong>Fecha:</strong> ${prescription.date ? new Date(prescription.date).toLocaleDateString() : 'N/A'}</p>
+          <table border="1" style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+            <tr>
+              <th>Ojo</th><th>Esfera</th><th>Cilindro</th><th>Eje</th><th>Tipo</th>
+            </tr>
+            <tr>
+              <td>OD</td><td>${prescription.sphereOdLejos || '-'}</td><td>${prescription.cylinderOdLejos || '-'}</td><td>${prescription.axisOdLejos || '-'}</td><td>Lejos</td>
+            </tr>
+            <tr>
+              <td>OD</td><td>${prescription.sphereOdCerca || '-'}</td><td>${prescription.cylinderOdCerca || '-'}</td><td>${prescription.axisOdCerca || '-'}</td><td>Cerca</td>
+            </tr>
+            <tr>
+              <td>OS</td><td>${prescription.sphereOsLejos || '-'}</td><td>${prescription.cylinderOsLejos || '-'}</td><td>${prescription.axisOsLejos || '-'}</td><td>Lejos</td>
+            </tr>
+            <tr>
+              <td>OS</td><td>${prescription.sphereOsCerca || '-'}</td><td>${prescription.cylinderOsCerca || '-'}</td><td>${prescription.axisOsCerca || '-'}</td><td>Cerca</td>
+            </tr>
+          </table>
+          <p><strong>Adición:</strong> ${prescription.add || '-'}</p>
+          <p><strong>Distancia Pupilar:</strong> ${prescription.pupillaryDistance || '-'}</p>
+          <p><strong>Diagnóstico:</strong> ${prescription.diagnosis || '-'}</p>
+          <p><strong>Notas:</strong> ${prescription.notes || '-'}</p>
+        </body>
+      </html>
+    `;
+    res.json({ html });
+  });
+
   // === ORDERS ===
-  app.get(api.orders.list.path, async (req, res) => {
+  app.get(api.orders.list.path, isAuthenticated, async (req, res) => {
     const orders = await storage.getOrders(req.query.patientId as string);
     res.json(orders);
   });
 
-  app.post(api.orders.create.path, async (req, res) => {
-    // Transactional creation of order + items
-    // We expect the body to have { ...orderData, items: [...] }
-    // But our route definition splits them or expects a specific shape. 
-    // Let's simplify and assume the body has `items` which we strip out before validating order schema.
+  app.post(api.orders.create.path, isAuthenticated, async (req, res) => {
     const { items, ...orderData } = req.body;
-    
     const parsedOrder = insertOrderSchema.parse(orderData);
-    // Validate items
-    // const parsedItems = z.array(insertOrderItemSchema).parse(items); 
-    // Actually, simple array check for now
-    
     const order = await storage.createOrder(parsedOrder, items);
     res.status(201).json(order);
   });
   
-  app.get(api.orders.getOrderItems.path, async (req, res) => {
+  app.get(api.orders.getOrderItems.path, isAuthenticated, async (req, res) => {
       const items = await storage.getOrderItems(Number(req.params.id));
-      if (!items) return res.status(404).json({ message: "Order not found" });
+      if (!items) return res.status(404).json({ message: "Pedido no encontrado" });
       res.json(items);
   });
 
   // === USERS/ROLES ===
-  app.get(api.users.getRole.path, async (req, res) => {
+  app.get(api.users.list.path, isAuthenticated, async (req, res) => {
+    const usersList = await storage.getAllUsers();
+    res.json(usersList);
+  });
+
+  app.get(api.users.getRole.path, isAuthenticated, async (req, res) => {
     const role = await storage.getUserRole(req.params.id);
-    if (!role) return res.status(404).json({ message: "Role not found" });
+    if (!role) return res.status(404).json({ message: "Rol no encontrado" });
     res.json(role);
   });
 
-  app.post(api.users.updateRole.path, async (req, res) => {
+  app.post(api.users.updateRole.path, isAuthenticated, async (req, res) => {
     const input = insertUserRoleSchema.parse(req.body);
     const role = await storage.setUserRole(input.userId, input);
     res.json(role);
@@ -136,40 +177,29 @@ export async function registerRoutes(
 }
 
 async function seedDatabase() {
-  const products = await storage.getProducts();
-  if (products.length === 0) {
+  const productsList = await storage.getProducts();
+  if (productsList.length === 0) {
     console.log("Seeding products...");
     await storage.createProduct({
       name: "Ray-Ban Aviator",
-      description: "Classic pilot style frames",
+      description: "Armazón estilo piloto clásico",
       category: PRODUCT_CATEGORIES.FRAME,
       brand: "Ray-Ban",
       model: "RB3025",
-      price: "150.00",
+      price: "150000",
       stock: 10,
       imageUrl: "https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=800&q=80",
       active: true,
     });
     await storage.createProduct({
-      name: "Blue Light Blockers",
-      description: "Protect your eyes from screen glare",
+      name: "Cristales Antireflejo",
+      description: "Protege tus ojos del brillo de las pantallas",
       category: PRODUCT_CATEGORIES.LENS,
       brand: "OptiGuard",
       model: "BL-100",
-      price: "50.00",
+      price: "50000",
       stock: 50,
       imageUrl: "https://images.unsplash.com/photo-1577803645773-f96470509666?w=800&q=80",
-      active: true,
-    });
-    await storage.createProduct({
-      name: "Contact Lens Solution",
-      description: "All-in-one cleaning solution",
-      category: PRODUCT_CATEGORIES.ACCESSORY,
-      brand: "BioTrue",
-      model: "BT-300",
-      price: "15.00",
-      stock: 100,
-      imageUrl: "https://images.unsplash.com/photo-1588643542263-23963286b976?w=800&q=80",
       active: true,
     });
   }

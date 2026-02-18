@@ -6,6 +6,7 @@ import {
   orders, 
   orderItems, 
   userRoles,
+  users,
   type Product, 
   type InsertProduct,
   type Appointment,
@@ -20,7 +21,7 @@ import {
   type InsertUserRole,
   ROLES
 } from "@shared/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, sql } from "drizzle-orm";
 
 export interface IStorage {
   // PRODUCTS
@@ -38,6 +39,7 @@ export interface IStorage {
 
   // PRESCRIPTIONS
   getPrescriptions(patientId?: string): Promise<Prescription[]>;
+  getPrescription(id: number): Promise<Prescription | undefined>;
   createPrescription(prescription: InsertPrescription): Promise<Prescription>;
 
   // ORDERS
@@ -46,7 +48,8 @@ export interface IStorage {
   createOrder(order: InsertOrder, items: { productId: number; quantity: number }[]): Promise<Order>;
   getOrderItems(orderId: number): Promise<(OrderItem & { product: Product })[]>;
 
-  // USER ROLES
+  // USER ROLES & ADMIN
+  getAllUsers(): Promise<any[]>;
   getUserRole(userId: string): Promise<UserRole | undefined>;
   setUserRole(userId: string, roleData: InsertUserRole): Promise<UserRole>;
 }
@@ -110,6 +113,11 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(prescriptions).orderBy(desc(prescriptions.date));
   }
 
+  async getPrescription(id: number): Promise<Prescription | undefined> {
+    const [prescription] = await db.select().from(prescriptions).where(eq(prescriptions.id, id));
+    return prescription;
+  }
+
   async createPrescription(insertPrescription: InsertPrescription): Promise<Prescription> {
     const [prescription] = await db.insert(prescriptions).values(insertPrescription).returning();
     return prescription;
@@ -142,9 +150,6 @@ export class DatabaseStorage implements IStorage {
           quantity: item.quantity,
           price: product.price,
         });
-
-        // Update stock
-        // await tx.update(products).set({ stock: product.stock - item.quantity }).where(eq(products.id, item.productId));
       }
       
       return order;
@@ -167,7 +172,19 @@ export class DatabaseStorage implements IStorage {
     return items as (OrderItem & { product: Product })[];
   }
 
-  // USER ROLES
+  // USER ROLES & ADMIN
+  async getAllUsers(): Promise<any[]> {
+    return await db.select({
+      id: users.id,
+      email: users.email,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      role: userRoles.role
+    })
+    .from(users)
+    .leftJoin(userRoles, eq(users.id, userRoles.userId));
+  }
+
   async getUserRole(userId: string): Promise<UserRole | undefined> {
     const [role] = await db.select().from(userRoles).where(eq(userRoles.userId, userId));
     return role;

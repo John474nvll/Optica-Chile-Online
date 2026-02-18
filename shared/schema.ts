@@ -15,27 +15,27 @@ export const ROLES = {
 } as const;
 
 export const PRODUCT_CATEGORIES = {
-  FRAME: "frame",
-  LENS: "lens",
-  CONTACT_LENS: "contact_lens",
-  ACCESSORY: "accessory",
-  SERVICE: "service",
+  FRAME: "armazón",
+  LENS: "cristal",
+  CONTACT_LENS: "lente_contacto",
+  ACCESSORY: "accesorio",
+  SERVICE: "servicio",
 } as const;
 
 export const APPOINTMENT_STATUS = {
-  SCHEDULED: "scheduled",
-  CONFIRMED: "confirmed",
-  COMPLETED: "completed",
-  CANCELLED: "cancelled",
-  NO_SHOW: "no_show",
+  SCHEDULED: "programada",
+  CONFIRMED: "confirmada",
+  COMPLETED: "completada",
+  CANCELLED: "cancelada",
+  NO_SHOW: "no_asiste",
 } as const;
 
 export const ORDER_STATUS = {
-  PENDING: "pending",
-  PROCESSING: "processing",
-  READY: "ready",
-  DELIVERED: "delivered",
-  CANCELLED: "cancelled",
+  PENDING: "pendiente",
+  PROCESSING: "en_proceso",
+  READY: "listo",
+  DELIVERED: "entregado",
+  CANCELLED: "cancelado",
 } as const;
 
 // === TABLES ===
@@ -54,7 +54,7 @@ export const products = pgTable("products", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description"),
-  category: text("category").notNull(), // frame, lens, etc.
+  category: text("category").notNull(), // armazón, cristal, etc.
   brand: text("brand"),
   model: text("model"),
   price: numeric("price").notNull(),
@@ -67,7 +67,7 @@ export const products = pgTable("products", {
 export const appointments = pgTable("appointments", {
   id: serial("id").primaryKey(),
   patientId: text("patient_id").notNull().references(() => users.id),
-  doctorName: text("doctor_name"), // or reference to a staff user
+  doctorName: text("doctor_name"),
   date: timestamp("date").notNull(),
   reason: text("reason"),
   status: text("status").notNull().default(APPOINTMENT_STATUS.SCHEDULED),
@@ -81,27 +81,38 @@ export const prescriptions = pgTable("prescriptions", {
   date: timestamp("date").defaultNow(),
   doctorName: text("doctor_name"),
   
-  // Right Eye (OD)
-  sphereOd: text("sphere_od"),
-  cylinderOd: text("cylinder_od"),
-  axisOd: text("axis_od"),
-  addOd: text("add_od"),
+  // Ojo Derecho (OD) - Cerca/Lejos
+  sphereOdLejos: text("sphere_od_lejos"),
+  cylinderOdLejos: text("cylinder_od_lejos"),
+  axisOdLejos: text("axis_od_lejos"),
+  sphereOdCerca: text("sphere_od_cerca"),
+  cylinderOdCerca: text("cylinder_od_cerca"),
+  axisOdCerca: text("axis_od_cerca"),
   
-  // Left Eye (OS)
-  sphereOs: text("sphere_os"),
-  cylinderOs: text("cylinder_os"),
-  axisOs: text("axis_os"),
-  addOs: text("add_os"),
+  // Ojo Izquierdo (OS) - Cerca/Lejos
+  sphereOsLejos: text("sphere_os_lejos"),
+  cylinderOsLejos: text("cylinder_os_lejos"),
+  axisOsLejos: text("axis_os_lejos"),
+  sphereOsCerca: text("sphere_os_cerca"),
+  cylinderOsCerca: text("cylinder_os_cerca"),
+  axisOsCerca: text("axis_os_cerca"),
   
+  add: text("addition"),
   pupillaryDistance: text("pupillary_distance"),
   diagnosis: text("diagnosis"),
   notes: text("notes"),
+  
+  // Transcription / Digital Copy
+  isTranscription: boolean("is_transcription").default(false),
+  originalImageUrl: text("original_image_url"),
+  
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const orders = pgTable("orders", {
   id: serial("id").primaryKey(),
   patientId: text("patient_id").notNull().references(() => users.id),
+  prescriptionId: integer("prescription_id").references(() => prescriptions.id),
   date: timestamp("date").defaultNow(),
   status: text("status").notNull().default(ORDER_STATUS.PENDING),
   totalAmount: numeric("total_amount").notNull(),
@@ -154,6 +165,10 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
   patient: one(users, {
     fields: [orders.patientId],
     references: [users.id],
+  }),
+  prescription: one(prescriptions, {
+    fields: [orders.prescriptionId],
+    references: [prescriptions.id],
   }),
   items: many(orderItems),
 }));

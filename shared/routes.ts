@@ -38,7 +38,7 @@ export const api = {
       method: 'GET' as const,
       path: '/api/products' as const,
       input: z.object({
-        active: z.string().optional() // 'true' or 'false'
+        active: z.string().optional()
       }).optional(),
       responses: {
         200: z.array(z.custom<typeof products.$inferSelect>()),
@@ -120,6 +120,14 @@ export const api = {
         200: z.array(z.custom<typeof prescriptions.$inferSelect>()),
       },
     },
+    get: {
+      method: 'GET' as const,
+      path: '/api/prescriptions/:id' as const,
+      responses: {
+        200: z.custom<typeof prescriptions.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
     create: {
       method: 'POST' as const,
       path: '/api/prescriptions' as const,
@@ -127,6 +135,14 @@ export const api = {
       responses: {
         201: z.custom<typeof prescriptions.$inferSelect>(),
         400: errorSchemas.validation,
+      },
+    },
+    print: {
+      method: 'GET' as const,
+      path: '/api/prescriptions/:id/print' as const,
+      responses: {
+        200: z.object({ html: z.string() }),
+        404: errorSchemas.notFound,
       },
     },
   },
@@ -144,7 +160,6 @@ export const api = {
     create: {
       method: 'POST' as const,
       path: '/api/orders' as const,
-      // Input is order data + items array
       input: insertOrderSchema.extend({
         items: z.array(z.object({
           productId: z.number(),
@@ -166,6 +181,19 @@ export const api = {
     },
   },
   users: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/admin/users' as const,
+      responses: {
+        200: z.array(z.object({
+          id: z.string(),
+          email: z.string().nullable(),
+          firstName: z.string().nullable(),
+          lastName: z.string().nullable(),
+          role: z.string().optional(),
+        })),
+      },
+    },
     getRole: {
       method: 'GET' as const,
       path: '/api/users/:id/role' as const,
